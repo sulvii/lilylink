@@ -34,6 +34,7 @@ export interface VoiceState {
   token?: string;
   sessionId?: string;
   endpoint?: string;
+  channelId?: string;
 }
 
 export interface RESTOptions {

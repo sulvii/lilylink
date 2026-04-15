@@ -368,6 +368,7 @@ export class LilyManager extends EventEmitter {
         ...player.voiceState,
         token: packet.d.token,
         endpoint: packet.d.endpoint,
+        channelId: packet.d.channel_id
       };
       if (packet.d.endpoint) {
         const match = packet.d.endpoint.match(
@@ -420,6 +421,7 @@ export class LilyManager extends EventEmitter {
       player.voiceState = {
         ...player.voiceState,
         sessionId: packet.d.session_id,
+        channelId: packet.d.channel_id
       };
 
       await this.attemptConnection(packet.d.guild_id);
@@ -432,15 +434,15 @@ export class LilyManager extends EventEmitter {
       return false;
     }
 
-    const { token, sessionId, endpoint } = player.voiceState;
-    if (!token || !sessionId || !endpoint) {
+    const { token, sessionId, endpoint, channelId } = player.voiceState;
+    if (!token || !sessionId || !endpoint || !channelId) {
       return false;
     }
 
     await player.node.rest.update({
       guildId,
       data: {
-        voice: { sessionId, token, endpoint },
+        voice: { sessionId, token, endpoint, channelId },
       },
     });
 
