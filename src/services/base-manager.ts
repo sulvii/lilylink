@@ -33,6 +33,7 @@ export interface VoicePacket {
     readonly guild_id: string;
     readonly token?: string;
     readonly endpoint?: string;
+    readonly channelId: string;
     readonly session_id?: string;
     readonly channel_id?: string;
     readonly user_id?: string;
@@ -367,8 +368,7 @@ export class LilyManager extends EventEmitter {
       player.voiceState = {
         ...player.voiceState,
         token: packet.d.token,
-        endpoint: packet.d.endpoint,
-        channelId: packet.d.channel_id
+        endpoint: packet.d.endpoint
       };
       if (packet.d.endpoint) {
         const match = packet.d.endpoint.match(
@@ -416,6 +416,7 @@ export class LilyManager extends EventEmitter {
           packet.d.channel_id
         );
         player.voiceChannel = packet.d.channel_id;
+        player.voiceState.channelId = packet.d.channel_id;
       }
 
       player.voiceState = {

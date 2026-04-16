@@ -247,6 +247,7 @@ export class LilyPlayer {
         d: {
           guild_id: this.guildId,
           channel_id: this.voiceChannel,
+          channelId: this.voiceChannel,
           self_mute: options?.setMute || false,
           self_deaf: options?.setDeaf || false,
         },
@@ -267,6 +268,7 @@ export class LilyPlayer {
         d: {
           guild_id: this.guildId,
           channel_id: null,
+          channelId: null,
           self_mute: false,
           self_deaf: false,
         },
