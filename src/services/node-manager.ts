@@ -1,208 +1,226 @@
-import { z } from 'zod';
-import { Registry } from '../helpers/registry';
 import {
-  type LilyNode,
-  type LilyNodeOptions,
-  LilyNodeState,
-} from '../models/node';
-import type { LilyManager } from './base-manager';
+	array,
+	boolean,
+	getDotPath,
+	type InferOutput,
+	integer,
+	maxValue,
+	minLength,
+	minValue,
+	number,
+	optional,
+	parse,
+	picklist,
+	pipe,
+	safeParse,
+	strictObject,
+	string,
+} from "valibot";
+import { Registry } from "../helpers/registry";
+import {
+	type LilyNode,
+	type LilyNodeOptions,
+	LilyNodeState,
+	type NodeStats,
+} from "../models/node";
+import type { LilyManager } from "./base-manager";
 
-const nodeOptionsSchema = z
-  .object({
-    host: z.string().min(1),
-    id: z.number().int().positive().optional(),
-    identifier: z.string().min(1).optional(),
-    port: z.number().int().min(1).max(65535),
-    password: z.string().min(1).optional(),
-    retryDelay: z.number().int().min(100).max(60000).optional().default(5000),
-    retryAmount: z.number().int().min(1).max(10).optional().default(3),
-    regions: z.array(z.string().min(1)).optional().default([]),
-    secure: z.boolean().optional().default(false),
-    sessionId: z.string().min(1).optional(),
-  })
-  .strict();
+const nonEmptyString = pipe(string(), minLength(1));
 
-export type ValidatedNodeOptions = z.infer<typeof nodeOptionsSchema>;
+const nodeOptionsSchema = strictObject({
+	host: nonEmptyString,
+	id: optional(pipe(number(), integer(), minValue(1))),
+	identifier: optional(nonEmptyString),
+	port: pipe(number(), integer(), minValue(1), maxValue(65535)),
+	password: optional(nonEmptyString),
+	retryDelay: optional(
+		pipe(number(), integer(), minValue(100), maxValue(60000)),
+		5000,
+	),
+	retryAmount: optional(
+		pipe(number(), integer(), minValue(1), maxValue(10)),
+		3,
+	),
+	regions: optional(array(nonEmptyString), []),
+	secure: optional(boolean(), false),
+	sessionId: optional(nonEmptyString),
+});
 
-export const SortTypeNodeEnum = z.enum([
-  'players',
-  'playingPlayers',
-  'memory',
-  'cpuLavalink',
-  'cpuSystem',
-  'uptime',
-  'random',
+export type ValidatedNodeOptions = InferOutput<typeof nodeOptionsSchema>;
+
+export const SortTypeNodeEnum = picklist([
+	"players",
+	"playingPlayers",
+	"memory",
+	"cpuLavalink",
+	"cpuSystem",
+	"uptime",
+	"random",
 ]);
 
-export type SortTypeNode = z.infer<typeof SortTypeNodeEnum>;
-
-interface NodeStats {
-  players: number;
-  playingPlayers: number;
-  memory: {
-    used: number;
-  };
-  cpu: {
-    lavalinkLoad: number;
-    systemLoad: number;
-  };
-  uptime: number;
-}
+export type SortTypeNode = InferOutput<typeof SortTypeNodeEnum>;
 
 export class LilyNodeManager {
-  private readonly manager: LilyManager;
-  public cache: Map<string | number, LilyNode>;
-  private readonly maxCacheSize = 100;
+	private readonly manager: LilyManager;
+	public cache: Map<string | number, LilyNode>;
+	private readonly maxCacheSize = 100;
 
-  constructor(manager: LilyManager, nodes: LilyNodeOptions[]) {
-    this.manager = manager;
-    this.cache = new Map();
-    const validatedNodes = nodes.map((node) => this.validateNode(node));
+	constructor(manager: LilyManager, nodes: LilyNodeOptions[]) {
+		this.manager = manager;
+		this.cache = new Map();
 
-    if (validatedNodes.length === 0) {
-      throw new Error('At least one node configuration is required');
-    }
+		if (nodes.length === 0) {
+			throw new Error("At least one node configuration is required");
+		}
 
-    for (const node of validatedNodes) {
-      this.add(node);
-    }
-  }
+		// Validate everything first so a bad config doesn't leave a half-filled cache
+		const validatedNodes = nodes.map((node) => this.validateNode(node));
 
-  private validateNode(options: LilyNodeOptions): ValidatedNodeOptions {
-    try {
-      return nodeOptionsSchema.parse(options);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const issues = error.issues
-          .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
-          .join(', ');
-        throw new Error(`Invalid node configuration: ${issues}`);
-      }
-      throw error;
-    }
-  }
+		for (const node of validatedNodes) {
+			this.register(node);
+		}
+	}
 
-  public init(): void {
-    if (this.cache.size === 0) {
-      throw new Error('No nodes available to initialize');
-    }
+	private validateNode(options: LilyNodeOptions): ValidatedNodeOptions {
+		const result = safeParse(nodeOptionsSchema, options);
 
-    for (const node of this.cache.values()) {
-      try {
-        node.connect();
-      } catch (error) {
-        this.manager.emit('nodeError', node, error);
-      }
-    }
-  }
+		if (!result.success) {
+			const issues = result.issues
+				.map((issue) => `${getDotPath(issue) ?? "root"}: ${issue.message}`)
+				.join(", ");
+			throw new Error(`Invalid node configuration: ${issues}`);
+		}
 
-  public add(options: LilyNodeOptions): void {
-    if (this.cache.size >= this.maxCacheSize) {
-      throw new Error(
-        `Cannot add more nodes. Maximum capacity (${this.maxCacheSize}) reached`
-      );
-    }
+		return result.output;
+	}
 
-    const validatedOptions = this.validateNode(options);
-    const identifier = validatedOptions.identifier ?? validatedOptions.host;
+	private register(options: ValidatedNodeOptions): void {
+		if (this.cache.size >= this.maxCacheSize) {
+			throw new Error(
+				`Cannot add more nodes. Maximum capacity (${this.maxCacheSize}) reached`,
+			);
+		}
 
-    if (this.cache.has(identifier)) {
-      throw new Error(`Node with identifier "${identifier}" already exists`);
-    }
+		const identifier = options.identifier ?? options.host;
 
-    const NodeClass = Registry.get('Node');
-    const node = new NodeClass(this.manager, validatedOptions);
-    this.cache.set(identifier, node);
+		if (this.cache.has(identifier)) {
+			throw new Error(`Node with identifier "${identifier}" already exists`);
+		}
 
-    this.manager.emit('nodeCreate', node);
-  }
+		const NodeClass = Registry.get("Node");
+		const node = new NodeClass(this.manager, options);
+		this.cache.set(identifier, node);
 
-  public remove(identifier: string): void {
-    const node = this.cache.get(identifier);
-    if (!node) {
-      throw new Error(`Node with identifier "${identifier}" not found`);
-    }
+		this.manager.emit("nodeCreate", node);
+	}
 
-    try {
-      node.destroy();
-      this.cache.delete(identifier);
-      this.manager.emit('nodeDestroy', identifier);
-    } catch (error) {
-      throw new Error(
-        `Failed to remove node "${identifier}": ${(error as Error).message}`
-      );
-    }
-  }
+	public init(): void {
+		if (this.cache.size === 0) {
+			throw new Error("No nodes available to initialize");
+		}
 
-  public get(identifier: string | number): LilyNode | undefined {
-    if (identifier === 'default' && this.cache.size === 1) {
-      return this.cache.values().next().value;
-    }
+		for (const node of this.cache.values()) {
+			try {
+				node.connect();
+			} catch (error) {
+				this.manager.emit("nodeError", node, error);
+			}
+		}
+	}
 
-    const node = this.cache.get(identifier);
-    if (!node) {
-      throw new Error(`Node with identifier "${identifier}" not found`);
-    }
+	public add(options: LilyNodeOptions): void {
+		this.register(this.validateNode(options));
+	}
 
-    return node;
-  }
+	public remove(identifier: string): void {
+		const node = this.cache.get(identifier);
+		if (!node) {
+			throw new Error(`Node with identifier "${identifier}" not found`);
+		}
 
-  public get best(): LilyNode {
-    const connectedNodes = [...this.cache.values()].filter(
-      (node) => node.state === LilyNodeState.CONNECTED
-    );
+		try {
+			node.destroy();
+			this.cache.delete(identifier);
+			this.manager.emit("nodeDestroy", identifier);
+		} catch (error) {
+			throw new Error(
+				`Failed to remove node "${identifier}": ${(error as Error).message}`,
+			);
+		}
+	}
 
-    if (connectedNodes.length === 0) {
-      throw new Error('No connected nodes available');
-    }
+	public get(identifier: string | number): LilyNode | undefined {
+		if (identifier === "default" && this.cache.size === 1) {
+			return this.cache.values().next().value;
+		}
 
-    return connectedNodes.sort((a, b) => a.stats.players - b.stats.players)[0];
-  }
+		const node = this.cache.get(identifier);
+		if (!node) {
+			throw new Error(`Node with identifier "${identifier}" not found`);
+		}
 
-  public sortByUsage(sortType: SortTypeNode): LilyNode {
-    SortTypeNodeEnum.parse(sortType);
+		return node;
+	}
 
-    const connectedNodes = [...this.cache.values()].filter(
-      (node) => node.state === LilyNodeState.CONNECTED
-    );
+	public get best(): LilyNode {
+		return this.sortByUsage("players");
+	}
 
-    if (connectedNodes.length === 0) {
-      throw new Error('No connected nodes available');
-    }
+	public sortByUsage(sortType: SortTypeNode): LilyNode {
+		// Types can't protect JS callers, so check at runtime too
+		parse(SortTypeNodeEnum, sortType);
 
-    const getSortValue = (node: LilyNode): number => {
-      const stats = node.stats as NodeStats;
-      switch (sortType) {
-        case 'players':
-          return stats.players;
-        case 'playingPlayers':
-          return stats.playingPlayers;
-        case 'memory':
-          return stats.memory.used;
-        case 'cpuLavalink':
-          return stats.cpu.lavalinkLoad;
-        case 'cpuSystem':
-          return stats.cpu.systemLoad;
-        case 'uptime':
-          return stats.uptime;
-        case 'random':
-          return Math.random();
-        default:
-          throw new Error(`Invalid sort type: ${sortType}`);
-      }
-    };
+		const [first, ...rest] = [...this.cache.values()].filter(
+			(node) => node.state === LilyNodeState.CONNECTED,
+		);
 
-    return connectedNodes.sort((a, b) => getSortValue(a) - getSortValue(b))[0];
-  }
+		if (!first) {
+			throw new Error("No connected nodes available");
+		}
 
-  public cleanup(): void {
-    for (const [identifier, node] of this.cache) {
-      try {
-        node.destroy();
-        this.cache.delete(identifier);
-      } catch (error) {
-        this.manager.emit('nodeError', node, error);
-      }
-    }
-  }
+		const getSortValue = (node: LilyNode): number => {
+			const stats: NodeStats = node.stats;
+			switch (sortType) {
+				case "players":
+					return stats.players;
+				case "playingPlayers":
+					return stats.playingPlayers;
+				case "memory":
+					return stats.memory.used;
+				case "cpuLavalink":
+					return stats.cpu.lavalinkLoad;
+				case "cpuSystem":
+					return stats.cpu.systemLoad;
+				case "uptime":
+					return stats.uptime;
+				case "random":
+					return Math.random();
+			}
+		};
+
+		// One pass, each node scored once: O(n) instead of sorting
+		let lowest = first;
+		let lowestValue = getSortValue(first);
+
+		for (const node of rest) {
+			const value = getSortValue(node);
+			if (value < lowestValue) {
+				lowest = node;
+				lowestValue = value;
+			}
+		}
+
+		return lowest;
+	}
+
+	public cleanup(): void {
+		for (const [identifier, node] of this.cache) {
+			try {
+				node.destroy();
+				this.cache.delete(identifier);
+			} catch (error) {
+				this.manager.emit("nodeError", node, error);
+			}
+		}
+	}
 }

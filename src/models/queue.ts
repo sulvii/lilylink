@@ -1,223 +1,250 @@
-import type { LilyTrack } from './track';
+import type { LilyTrack } from "./track";
 
 class QueueNode {
-  constructor(
-    public value: LilyTrack,
-    public prev: QueueNode | null = null,
-    public next: QueueNode | null = null
-  ) {}
+	constructor(
+		public value: LilyTrack,
+		public prev: QueueNode | null = null,
+		public next: QueueNode | null = null,
+	) {}
 }
 
-export class LilyQueue {
-  private tracks: Set<LilyTrack>;
-  private head: QueueNode | null;
-  private tail: QueueNode | null;
-  private nodeCount: number;
-  private startIndex: number;
+export type ShuffleKey = (track: LilyTrack) => string | undefined;
 
-  constructor(queueStartIndex = 0) {
-    this.tracks = new Set<LilyTrack>();
-    this.head = null;
-    this.tail = null;
-    this.nodeCount = 0;
-    this.startIndex = Math.max(0, queueStartIndex);
-  }
+const authorKey: ShuffleKey = (track) => track.author;
 
-  public setStartIndex(index: number): void {
-    this.startIndex = Math.max(0, index);
-  }
+function fisherYates(items: LilyTrack[]): void {
+	for (let i = items.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[items[i], items[j]] = [items[j], items[i]];
+	}
+}
 
-  public getStartIndex(): number {
-    return this.startIndex;
-  }
+export class LilyQueue implements Iterable<LilyTrack> {
+	private readonly counts = new Map<LilyTrack, number>();
+	private head: QueueNode | null = null;
+	private tail: QueueNode | null = null;
+	private nodeCount = 0;
+	private startIndex: number;
 
-  public add(track: LilyTrack): boolean {
-    try {
-      const node = new QueueNode(track);
-      if (this.head) {
-        node.prev = this.tail;
-        this.tail!.next = node;
-        this.tail = node;
-      } else {
-        this.head = node;
-        this.tail = node;
-      }
-      this.tracks.add(track);
-      this.nodeCount++;
-      return true;
-    } catch {
-      return false;
-    }
-  }
+	constructor(queueStartIndex = 0) {
+		this.startIndex = Math.max(0, queueStartIndex);
+	}
 
-  public get(position: number): LilyTrack {
-    const adjustedPosition = position - this.startIndex;
-    if (adjustedPosition < 0 || adjustedPosition >= this.nodeCount) {
-      throw new Error('Position out of bounds');
-    }
+	public setStartIndex(index: number): void {
+		this.startIndex = Math.max(0, index);
+	}
 
-    let current = this.head;
-    for (let i = 0; i < adjustedPosition; i++) {
-      current = current!.next;
-    }
-    return current!.value;
-  }
+	public getStartIndex(): number {
+		return this.startIndex;
+	}
 
-  public has(track: LilyTrack): boolean {
-    return this.tracks.has(track);
-  }
+	public get size(): number {
+		return this.nodeCount;
+	}
 
-  public remove(position: number): boolean {
-    const adjustedPosition = position - this.startIndex;
-    if (adjustedPosition < 0 || adjustedPosition >= this.nodeCount) {
-      return false;
-    }
+	public add(track: LilyTrack): boolean {
+		const node = new QueueNode(track, this.tail);
+		if (this.tail) {
+			this.tail.next = node;
+		} else {
+			this.head = node;
+		}
+		this.tail = node;
+		this.retain(track);
+		this.nodeCount++;
+		return true;
+	}
 
-    let current = this.head;
-    for (let i = 0; i < adjustedPosition; i++) {
-      current = current!.next;
-    }
+	public unshift(track: LilyTrack): boolean {
+		const node = new QueueNode(track, null, this.head);
+		if (this.head) {
+			this.head.prev = node;
+		} else {
+			this.tail = node;
+		}
+		this.head = node;
+		this.retain(track);
+		this.nodeCount++;
+		return true;
+	}
 
-    if (current === this.head) {
-      this.head = current!.next;
-    }
-    if (current === this.tail) {
-      this.tail = current!.prev;
-    }
-    if (current!.prev) {
-      current!.prev.next = current!.next;
-    }
-    if (current!.next) {
-      current!.next.prev = current!.prev;
-    }
+	public get(position: number): LilyTrack {
+		const node = this.nodeAt(position - this.startIndex);
+		if (!node) {
+			throw new Error("Position out of bounds");
+		}
+		return node.value;
+	}
 
-    this.tracks.delete(current!.value);
-    this.nodeCount--;
-    return true;
-  }
+	public has(track: LilyTrack): boolean {
+		return this.counts.has(track);
+	}
 
-  public shift(): LilyTrack {
-    if (!this.head) {
-      throw new Error('Queue is empty');
-    }
+	public remove(position: number): boolean {
+		const node = this.nodeAt(position - this.startIndex);
+		if (!node) {
+			return false;
+		}
+		this.unlink(node);
+		return true;
+	}
 
-    const track = this.head.value;
-    this.head = this.head.next;
-    if (this.head) {
-      this.head.prev = null;
-    } else {
-      this.tail = null;
-    }
+	public shift(): LilyTrack {
+		const node = this.head;
+		if (!node) {
+			throw new Error("Queue is empty");
+		}
+		this.unlink(node);
+		return node.value;
+	}
 
-    this.tracks.delete(track);
-    this.nodeCount--;
-    return track;
-  }
+	public pop(): LilyTrack {
+		const node = this.tail;
+		if (!node) {
+			throw new Error("Queue is empty");
+		}
+		this.unlink(node);
+		return node.value;
+	}
 
-  public unshift(track: LilyTrack): boolean {
-    try {
-      const node = new QueueNode(track);
-      if (this.head) {
-        node.next = this.head;
-        this.head.prev = node;
-        this.head = node;
-      } else {
-        this.head = node;
-        this.tail = node;
-      }
-      this.tracks.add(track);
-      this.nodeCount++;
-      return true;
-    } catch {
-      return false;
-    }
-  }
+	public clear(): boolean {
+		this.counts.clear();
+		this.head = null;
+		this.tail = null;
+		this.nodeCount = 0;
+		return true;
+	}
 
-  public pop(): LilyTrack {
-    if (!this.tail) {
-      throw new Error('Queue is empty');
-    }
+	public shuffle(groupBy: ShuffleKey = authorKey): boolean {
+		if (this.nodeCount < 2) {
+			throw new Error("There must be at least 2 songs in queue!");
+		}
 
-    const track = this.tail.value;
-    this.tail = this.tail.prev;
-    if (this.tail) {
-      this.tail.next = null;
-    } else {
-      this.head = null;
-    }
+		const nodes: QueueNode[] = [];
+		const groups = new Map<string, LilyTrack[]>();
+		const loners: LilyTrack[] = [];
 
-    this.tracks.delete(track);
-    this.nodeCount--;
-    return track;
-  }
+		for (let current = this.head; current; current = current.next) {
+			nodes.push(current);
 
-  public clear(): boolean {
-    try {
-      this.tracks.clear();
-      this.head = null;
-      this.tail = null;
-      this.nodeCount = 0;
-      return true;
-    } catch {
-      return false;
-    }
-  }
+			const key = groupBy(current.value);
+			if (key === undefined) {
+				loners.push(current.value);
+				continue;
+			}
 
-  public shuffle(): boolean {
-    if (this.nodeCount < 2) {
-      throw new Error('There must be at least 2 songs in queue!');
-    }
+			const group = groups.get(key);
+			if (group) {
+				group.push(current.value);
+			} else {
+				groups.set(key, [current.value]);
+			}
+		}
 
-    const positions: QueueNode[] = [];
-    let current = this.head;
-    while (current) {
-      positions.push(current);
-      current = current.next;
-    }
+		const allGroups = [...groups.values(), ...loners.map((track) => [track])];
+		const scored: { track: LilyTrack; score: number }[] = [];
 
-    for (let i = positions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      if (i !== j) {
-        const temp = positions[i].value;
-        positions[i].value = positions[j].value;
-        positions[j].value = temp;
-      }
-    }
-    return true;
-  }
+		for (const group of allGroups) {
+			fisherYates(group);
 
-  public get size(): number {
-    return this.nodeCount;
-  }
+			const step = 1 / group.length;
+			const offset = Math.random() * step;
 
-  public *values(): IterableIterator<LilyTrack> {
-    let current = this.head;
-    while (current) {
-      yield { ...current.value };
-      current = current.next;
-    }
-  }
+			for (let i = 0; i < group.length; i++) {
+				scored.push({
+					track: group[i],
+					score: offset + i * step + (Math.random() - 0.5) * step * 0.5,
+				});
+			}
+		}
 
-  public forEach(callbackfn: (value: LilyTrack, index: number) => void): void {
-    let current = this.head;
-    let index = this.startIndex;
-    while (current) {
-      callbackfn(current.value, index);
-      current = current.next;
-      index++;
-    }
-  }
+		scored.sort((a, b) => a.score - b.score);
 
-  public map<T>(callbackfn: (value: LilyTrack, index: number) => T): T[] {
-    const result: T[] = new Array(this.nodeCount);
-    let current = this.head;
-    let arrayIndex = 0;
-    let queueIndex = this.startIndex;
-    while (current) {
-      result[arrayIndex++] = callbackfn(current.value, queueIndex);
-      current = current.next;
-      queueIndex++;
-    }
-    return result;
-  }
+		for (let i = 0; i < nodes.length; i++) {
+			nodes[i].value = scored[i].track;
+		}
+
+		return true;
+	}
+
+	public *values(): IterableIterator<LilyTrack> {
+		for (let current = this.head; current; current = current.next) {
+			yield current.value;
+		}
+	}
+
+	public [Symbol.iterator](): IterableIterator<LilyTrack> {
+		return this.values();
+	}
+
+	public forEach(callbackfn: (value: LilyTrack, index: number) => void): void {
+		let index = this.startIndex;
+		for (let current = this.head; current; current = current.next) {
+			callbackfn(current.value, index++);
+		}
+	}
+
+	public map<T>(callbackfn: (value: LilyTrack, index: number) => T): T[] {
+		const result: T[] = [];
+		let index = this.startIndex;
+		for (let current = this.head; current; current = current.next) {
+			result.push(callbackfn(current.value, index++));
+		}
+		return result;
+	}
+
+	private nodeAt(index: number): QueueNode | null {
+		if (index < 0 || index >= this.nodeCount) {
+			return null;
+		}
+
+		if (index < this.nodeCount / 2) {
+			let current = this.head;
+			for (let i = 0; i < index && current; i++) {
+				current = current.next;
+			}
+			return current;
+		}
+
+		let current = this.tail;
+		for (let i = this.nodeCount - 1; i > index && current; i--) {
+			current = current.prev;
+		}
+		return current;
+	}
+
+	private unlink(node: QueueNode): void {
+		if (node.prev) {
+			node.prev.next = node.next;
+		} else {
+			this.head = node.next;
+		}
+
+		if (node.next) {
+			node.next.prev = node.prev;
+		} else {
+			this.tail = node.prev;
+		}
+
+		node.prev = null;
+		node.next = null;
+		this.release(node.value);
+		this.nodeCount--;
+	}
+
+	private retain(track: LilyTrack): void {
+		this.counts.set(track, (this.counts.get(track) ?? 0) + 1);
+	}
+
+	private release(track: LilyTrack): void {
+		const count = this.counts.get(track);
+		if (count === undefined) {
+			return;
+		}
+		if (count <= 1) {
+			this.counts.delete(track);
+		} else {
+			this.counts.set(track, count - 1);
+		}
+	}
 }

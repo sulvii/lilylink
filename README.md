@@ -98,4 +98,4 @@ class RedisAdapter extends CacheAdapter {
 }
 ```
 
- Note this is a simple example with Redis, you should handle errors and edge cases (i.e: expiry, json-check, emitting events, etc.) in your own implementation.
+Note this is a simple example with Redis, you should handle errors and edge cases (i.e: expiry, json-check, emitting events, etc.) in your own implementation.

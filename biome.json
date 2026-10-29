@@ -1,108 +1,34 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": {
-    "enabled": true
-  },
-  "formatter": {
-    "enabled": true,
-    "formatWithErrors": false,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 80,
-    "lineEnding": "lf",
-    "ignore": [".git", "node_modules", "dist"]
-  },
-  "javascript": {
-    "formatter": {
-      "enabled": true,
-      "quoteStyle": "single",
-      "jsxQuoteStyle": "double",
-      "trailingCommas": "es5",
-      "semicolons": "always",
-      "arrowParentheses": "always",
-      "bracketSpacing": true,
-      "bracketSameLine": false
-    },
-    "parser": {
-      "unsafeParameterDecoratorsEnabled": false
-    }
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "complexity": {
-        "recommended": true,
-        "noForEach": "error",
-        "useOptionalChain": "error",
-        "noStaticOnlyClass": "error",
-        "noThisInStatic": "error",
-        "noUselessConstructor": "error",
-        "noUselessFragments": "error"
-      },
-      "correctness": {
-        "recommended": true,
-        "noUnusedVariables": "error",
-        "noUndeclaredVariables": "error",
-        "noUnreachable": "error",
-        "noUnusedImports": "error",
-        "useHookAtTopLevel": "error",
-        "noConstantCondition": "error"
-      },
-      "performance": {
-        "recommended": true,
-        "noDelete": "error",
-        "noAccumulatingSpread": "error"
-      },
-      "style": {
-        "recommended": true,
-        "noImplicitBoolean": "error",
-        "noNegationElse": "error",
-        "useBlockStatements": "error",
-        "useShorthandArrayType": "error",
-        "useTemplate": "error",
-        "noShoutyConstants": "error",
-        "noNonNullAssertion": "off"
-      },
-      "suspicious": {
-        "recommended": true,
-        "noArrayIndexKey": "error",
-        "noAssignInExpressions": "error",
-        "noAsyncPromiseExecutor": "error",
-        "noConfusingVoidType": "error",
-        "noRedeclare": "error",
-        "noShadowRestrictedNames": "error"
-      }
-    }
-  },
-  "json": {
-    "parser": {
-      "allowComments": true,
-      "allowTrailingCommas": false
-    },
-    "formatter": {
-      "enabled": true,
-      "indentStyle": "space",
-      "indentWidth": 2,
-      "lineWidth": 80
-    }
-  },
-  "overrides": [
-    {
-      "include": ["**/*.test.{js,jsx,ts,tsx}"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noStaticOnlyClass": "off"
-          }
-        }
-      }
-    }
-  ],
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "defaultBranch": "main",
-    "useIgnoreFile": true
-  }
+	"$schema": "https://biomejs.dev/schemas/2.6.4/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": ["**", "!!**/dist"]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended"
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		}
+	},
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	}
 }

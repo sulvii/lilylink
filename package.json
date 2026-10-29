@@ -1,53 +1,52 @@
 {
-  "name": "lilylink",
-  "version": "2.0.1",
-  "description": "A fork of a memory-safe lavalink client with enhanced performance.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "module": "dist/index.mjs",
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE",
-    "package.json"
-  ],
-  "scripts": {
-    "build": "bunx tsup",
-    "lint": "biome lint --write .",
-    "format": "biome format --write .",
-    "check": "biome check --write .",
-    "check:fix": "biome check --write . --unsafe",
-    "prepare": "npm rum build"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/shimizudev/lilylink.git"
-  },
-  "keywords": [
-    "Lilylink",
-    "Lavalink",
-    "Client",
-    "Music"
-  ],
-  "author": "Kiyomi & Mohtasmim",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/shimizudev/lilylink/issues"
-  },
-  "homepage": "https://github.com/shimizudev/lilylink#readme",
-  "devDependencies": {
-    "@biomejs/biome": "1.9.4",
-    "@swc/core": "^1.11.20",
-    "@types/node": "^22.9.0",
-    "@types/ws": "^8.5.13",
-    "discord.js": "^14.16.3",
-    "dotenv": "^16.4.5",
-    "tsup": "^8.3.5",
-    "typescript": "^5.6.3"
-  },
-  "dependencies": {
-    "cheerio": "^1.0.0",
-    "ws": "^8.18.0",
-    "zod": "^3.23.8"
-  }
+	"name": "lilylink",
+	"version": "2.0.1",
+	"description": "A fork of a memory-safe lavalink client with enhanced performance.",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"module": "dist/index.mjs",
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE",
+		"package.json"
+	],
+	"scripts": {
+		"build": "bun build ./src/index.ts --minify --target=node --format=cjs --outfile ./dist/index.js && bun run build:mjs && bun run build:types",
+		"build:mjs": "bun build ./src/index.ts --minify --target=node --outfile ./dist/index.mjs",
+		"build:types": "tsc --emitDeclarationOnly --outDir ./dist",
+		"lint": "biome lint --write .",
+		"format": "biome format --write .",
+		"check": "biome check --write .",
+		"check:fix": "biome check --write . --unsafe",
+		"prepare": "bun run build"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/shimizudev/lilylink.git"
+	},
+	"keywords": [
+		"Lilylink",
+		"Lavalink",
+		"Client",
+		"Music"
+	],
+	"author": "Kiyomi & Mohtasim",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/shimizudev/lilylink/issues"
+	},
+	"homepage": "https://github.com/shimizudev/lilylink#readme",
+	"devDependencies": {
+		"@biomejs/biome": "^2.6.4",
+		"@types/bun": "^1.4.4",
+		"@types/ws": "^8.5.13",
+		"discord.js": "^14.27.0",
+		"dotenv": "^18.0.9",
+		"typescript": "^7.0.2"
+	},
+	"dependencies": {
+		"ky": "^2.2.0",
+		"valibot": "^1.5.0"
+	}
 }
