@@ -1,7 +1,7 @@
 {
 	"name": "lilylink",
 	"version": "2.0.1",
-	"description": "A fork of a memory-safe lavalink client with enhanced performance.",
+	"description": "A memory-safe lavalink client with enhanced performance.",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"module": "dist/index.mjs",
