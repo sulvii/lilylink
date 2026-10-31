@@ -12,8 +12,8 @@
 		"package.json"
 	],
 	"scripts": {
-		"build": "bun build ./src/index.ts --minify --target=node --format=cjs --outfile ./dist/index.js && bun run build:mjs && bun run build:types",
-		"build:mjs": "bun build ./src/index.ts --minify --target=node --outfile ./dist/index.mjs",
+		"build": "bun build ./src/index.ts --target=node --format=cjs --outfile ./dist/index.js && bun run build:mjs && bun run build:types",
+		"build:mjs": "bun build ./src/index.ts --target=node --outfile ./dist/index.mjs",
 		"build:types": "tsc --emitDeclarationOnly --outDir ./dist",
 		"lint": "biome lint --write .",
 		"format": "biome format --write .",
