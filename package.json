@@ -23,7 +23,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/shimizudev/lilylink.git"
+		"url": "git+https://github.com/sulvii/lilylink.git"
 	},
 	"keywords": [
 		"Lilylink",
@@ -31,12 +31,12 @@
 		"Client",
 		"Music"
 	],
-	"author": "Kiyomi & Mohtasim",
+	"author": "Void Star & Mohtasim",
 	"license": "MIT",
 	"bugs": {
-		"url": "https://github.com/shimizudev/lilylink/issues"
+		"url": "https://github.com/sulvii/lilylink/issues"
 	},
-	"homepage": "https://github.com/shimizudev/lilylink#readme",
+	"homepage": "https://github.com/sulvii/lilylink#readme",
 	"devDependencies": {
 		"@biomejs/biome": "^2.6.4",
 		"@types/bun": "^1.4.4",
